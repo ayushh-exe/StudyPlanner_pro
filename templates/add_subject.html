@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <div class="col-md-3">
+            <div class="card mt-5">
+                <div class="card-header">
+                    <h4>My Subjects</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <a href="{{ url_for('add_subject') }}" class="text-decoration-none">Add Subject</a>
+                        </li>
+                        <li class="list-group-item">
+                            <a href="#" class="text-decoration-none">All Bookmarks</a>
+                        </li>
+                        <li class="list-group-item">
+                            <a href="{{ url_for('logout') }}" class="text-decoration-none">Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9">
+            <!-- Add New Subject Form -->
+            <div class="card mt-5">
+                <div class="card-header">
+                    <h3 class="text-center">Add New Subject</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Subject Name</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Days Until Exam</label>
+                                <input type="number" class="form-control" name="days_left" min="1" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Total Units</label>
+                                <input type="number" class="form-control" name="total_units" min="1" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Priority</label>
+                                <select class="form-select" name="priority" required>
+                                    <option value="1">Highest</option>
+                                    <option value="2">High</option>
+                                    <option value="3" selected>Medium</option>
+                                    <option value="4">Low</option>
+                                    <option value="5">Lowest</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Complexity</label>
+                                <select class="form-select" name="complexity" required>
+                                    <option value="1">Very Easy</option>
+                                    <option value="2">Easy</option>
+                                    <option value="3" selected>Medium</option>
+                                    <option value="4">Hard</option>
+                                    <option value="5">Very Hard</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Add Subject</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Display Existing Subjects -->
+            {% if subjects %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3>Your Subjects</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Days Left</th>
+                                    <th>Units</th>
+                                    <th>Priority</th>
+                                    <th>Complexity</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subject in subjects %}
+                                <tr>
+                                    <td>{{ subject.name }}</td>
+                                    <td>{{ subject.days_left }}</td>
+                                    <td>{{ subject.total_units }}</td>
+                                    <td>
+                                        {% if subject.priority == 1 %}
+                                            <span class="badge bg-danger">Highest</span>
+                                        {% elif subject.priority == 2 %}
+                                            <span class="badge bg-warning text-dark">High</span>
+                                        {% elif subject.priority == 3 %}
+                                            <span class="badge bg-primary">Medium</span>
+                                        {% elif subject.priority == 4 %}
+                                            <span class="badge bg-info">Low</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Lowest</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if subject.complexity == 1 %}
+                                            <span class="badge bg-success">Very Easy</span>
+                                        {% elif subject.complexity == 2 %}
+                                            <span class="badge bg-info">Easy</span>
+                                        {% elif subject.complexity == 3 %}
+                                            <span class="badge bg-primary">Medium</span>
+                                        {% elif subject.complexity == 4 %}
+                                            <span class="badge bg-warning text-dark">Hard</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Very Hard</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('edit_subject', id=subject.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                        <form method="POST" action="{{ url_for('delete_subject', id=subject.id) }}" style="display: inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?')">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card mt-4">
+                <div class="card-body">
+                    <p class="text-center text-muted">No subjects added yet. Add your first subject above!</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
