@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h2 class="text-center mb-4">Pomodoro Study Timer</h2>
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div id="timer" class="display-1 mb-4">25:00</div>
+                    <div class="btn-group" role="group">
+                        <button id="startBtn" class="btn btn-success btn-lg">Start</button>
+                        <button id="pauseBtn" class="btn btn-warning btn-lg" disabled>Pause</button>
+                        <button id="resetBtn" class="btn btn-danger btn-lg">Reset</button>
+                    </div>
+                    <div class="mt-4">
+                        <h4>Current Session: <span id="sessionCount">1</span>/4</h4>
+                        <div class="progress mt-2">
+                            <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <h4>Study Tips</h4>
+                <ul class="list-group">
+                    <li class="list-group-item">Take a 5-minute break after each session</li>
+                    <li class="list-group-item">After 4 sessions, take a 15-30 minute break</li>
+                    <li class="list-group-item">Stay hydrated during study sessions</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Timer variables
+        let timer;
+        let timeLeft = 25 * 60; // 25 minutes in seconds
+        let isRunning = false;
+        let currentSession = 1;
+        const totalSessions = 4;
+        
+        // DOM elements
+        const timerDisplay = document.getElementById('timer');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const sessionCount = document.getElementById('sessionCount');
+        const progressBar = document.getElementById('progressBar');
+        
+        // Initialize timer display
+        updateTimerDisplay();
+        
+        // Event listeners
+        startBtn.addEventListener('click', startTimer);
+        pauseBtn.addEventListener('click', pauseTimer);
+        resetBtn.addEventListener('click', resetTimer);
+        
+        // Timer functions
+        function startTimer() {
+            if (!isRunning) {
+                isRunning = true;
+                startBtn.disabled = true;
+                pauseBtn.disabled = false;
+                
+                timer = setInterval(function() {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    updateProgressBar();
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(timer);
+                        handleSessionComplete();
+                    }
+                }, 1000);
+            }
+        }
+        
+        function pauseTimer() {
+            if (isRunning) {
+                clearInterval(timer);
+                isRunning = false;
+                startBtn.disabled = false;
+                pauseBtn.disabled = true;
+            }
+        }
+        
+        function resetTimer() {
+            clearInterval(timer);
+            isRunning = false;
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            
+            // Reset to initial values
+            if (currentSession % 2 === 1) {
+                // Study session
+                timeLeft = 25 * 60;
+            } else {
+                // Break session
+                if (currentSession === totalSessions) {
+                    timeLeft = 30 * 60; // Long break
+                } else {
+                    timeLeft = 5 * 60; // Short break
+                }
+            }
+            
+            updateTimerDisplay();
+            updateProgressBar();
+        }
+        
+        function handleSessionComplete() {
+            isRunning = false;
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            
+            // Play sound to notify session completion
+            const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
+            audio.play();
+            
+            // Determine next session type
+            currentSession++;
+            if (currentSession > totalSessions) {
+                currentSession = 1;
+            }
+            
+            sessionCount.textContent = currentSession;
+            
+            // Set time for next session
+            if (currentSession % 2 === 1) {
+                // Study session
+                timeLeft = 25 * 60;
+                alert('Time for a study session!');
+            } else {
+                // Break session
+                if (currentSession === totalSessions) {
+                    timeLeft = 30 * 60; // Long break
+                    alert('Great job! Take a long break (30 minutes).');
+                } else {
+                    timeLeft = 5 * 60; // Short break
+                    alert('Take a short break (5 minutes).');
+                }
+            }
+            
+            updateTimerDisplay();
+            updateProgressBar();
+        }
+        
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        function updateProgressBar() {
+            let totalTime;
+            if (currentSession % 2 === 1) {
+                totalTime = 25 * 60; // Study session
+            } else {
+                totalTime = (currentSession === totalSessions) ? 30 * 60 : 5 * 60; // Break session
+            }
+            
+            const progress = ((totalTime - timeLeft) / totalTime) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+    });
+</script>
+{% endblock %}
