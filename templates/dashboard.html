@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h2>Welcome, {{ username }}!</h2>
+    <div class="row mt-4">
+        <!-- Subjects Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">📚 My Subjects</h5>
+                    <p class="card-text">Manage your subjects and syllabus</p>
+                    <a href="{{ url_for('subjects') }}" class="btn btn-primary">Manage Subjects</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Tracking Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">📊 Progress Tracking</h5>
+                    <p class="card-text">Track your learning progress</p>
+                    <a href="{{ url_for('progress') }}" class="btn btn-primary">View Progress</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pomodoro Timer Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">⏱️ Pomodoro Timer</h5>
+                    <p class="card-text">Focus on your studies</p>
+                    <a href="{{ url_for('pomodoro') }}" class="btn btn-primary">Start Timer</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
