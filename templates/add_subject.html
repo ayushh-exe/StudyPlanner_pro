@@ -1,32 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container">
-    <div class="row">
-        <!-- Sidebar Navigation -->
-        <div class="col-md-3">
-            <div class="card mt-5">
-                <div class="card-header">
-                    <h4>My Subjects</h4>
-                </div>
-                <div class="card-body">
-                    <ul class="list-group">
-                        <li class="list-group-item">
-                            <a href="{{ url_for('add_subject') }}" class="text-decoration-none">Add Subject</a>
-                        </li>
-                        <li class="list-group-item">
-                            <a href="#" class="text-decoration-none">All Bookmarks</a>
-                        </li>
-                        <li class="list-group-item">
-                            <a href="{{ url_for('logout') }}" class="text-decoration-none">Logout</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="col-md-9">
-            <!-- Add New Subject Form -->
+    <div class="row justify-content-center">
+        <div class="col-md-8">
             <div class="card mt-5">
                 <div class="card-header">
                     <h3 class="text-center">Add New Subject</h3>
@@ -80,79 +56,6 @@
                     </form>
                 </div>
             </div>
-
-            <!-- Display Existing Subjects -->
-            {% if subjects %}
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h3>Your Subjects</h3>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Subject</th>
-                                    <th>Days Left</th>
-                                    <th>Units</th>
-                                    <th>Priority</th>
-                                    <th>Complexity</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for subject in subjects %}
-                                <tr>
-                                    <td>{{ subject.name }}</td>
-                                    <td>{{ subject.days_left }}</td>
-                                    <td>{{ subject.total_units }}</td>
-                                    <td>
-                                        {% if subject.priority == 1 %}
-                                            <span class="badge bg-danger">Highest</span>
-                                        {% elif subject.priority == 2 %}
-                                            <span class="badge bg-warning text-dark">High</span>
-                                        {% elif subject.priority == 3 %}
-                                            <span class="badge bg-primary">Medium</span>
-                                        {% elif subject.priority == 4 %}
-                                            <span class="badge bg-info">Low</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Lowest</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if subject.complexity == 1 %}
-                                            <span class="badge bg-success">Very Easy</span>
-                                        {% elif subject.complexity == 2 %}
-                                            <span class="badge bg-info">Easy</span>
-                                        {% elif subject.complexity == 3 %}
-                                            <span class="badge bg-primary">Medium</span>
-                                        {% elif subject.complexity == 4 %}
-                                            <span class="badge bg-warning text-dark">Hard</span>
-                                        {% else %}
-                                            <span class="badge bg-danger">Very Hard</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('edit_subject', id=subject.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                        <form method="POST" action="{{ url_for('delete_subject', id=subject.id) }}" style="display: inline;">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?')">Delete</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            {% else %}
-            <div class="card mt-4">
-                <div class="card-body">
-                    <p class="text-center text-muted">No subjects added yet. Add your first subject above!</p>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
