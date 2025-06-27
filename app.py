@@ -1,12 +1,14 @@
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta, time
+from scheduler import generate_knapsack_schedule  
 
 # Initialize Flask app
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secure-secret-key'
+app.config['SECRET_KEY'] = '--'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -16,7 +18,7 @@ csrf = CSRFProtect(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# Database Models
+# ---------------------- Models ---------------------- #
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
@@ -48,11 +50,21 @@ class Subject(db.Model):
     def complexity_label(self):
         return {1: 'Very Easy', 2: 'Easy', 3: 'Medium', 4: 'Hard', 5: 'Very Hard'}.get(self.complexity, 'Unknown')
 
+class TimetableSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subject.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    duration = db.Column(db.Integer, nullable=False)
+    subject = db.relationship('Subject')
+
+# ---------------------- Auth ---------------------- #
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Routes
 @app.route('/')
 def home():
     return render_template('home.html')
@@ -79,7 +91,7 @@ def register():
             db.session.commit()
             flash('Registration successful! Please login.', 'success')
             return redirect(url_for('login'))
-        except Exception as e:
+        except Exception:
             db.session.rollback()
             flash('Registration failed. Please try again.', 'danger')
 
@@ -104,10 +116,15 @@ def logout():
     logout_user()
     return redirect(url_for('home'))
 
+# ---------------------- Pages ---------------------- #
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html', username=current_user.username)
+    subjects = Subject.query.filter_by(user_id=current_user.id).all()
+    overall_progress = round(
+        sum(subject.progress_percent for subject in subjects) / len(subjects), 1
+    ) if subjects else 0
+    return render_template('dashboard.html', username=current_user.username, overall_progress=overall_progress)
 
 @app.route('/subjects')
 @login_required
@@ -132,26 +149,126 @@ def add_subject():
             db.session.commit()
             flash('Subject added successfully!', 'success')
             return redirect(url_for('subjects'))
-        except Exception as e:
+        except Exception:
             db.session.rollback()
             flash('Error adding subject. Please check your inputs.', 'danger')
     return render_template('add_subject.html')
 
-@app.route('/progress')
+@app.route('/delete_subject/<int:subject_id>', methods=['POST'])
+@login_required
+def delete_subject(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    if subject.user_id != current_user.id:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for('subjects'))
+    db.session.delete(subject)
+    db.session.commit()
+    flash("Subject deleted successfully.", "success")
+    return redirect(url_for('subjects'))
+
+@app.route('/progress', methods=['GET', 'POST'])
 @login_required
 def progress():
-    return render_template('progress.html')
+    if request.method == 'POST':
+        subject_id = request.form.get('subject_id')
+        completed_units = request.form.get('completed_units')
+        subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first()
+        if subject:
+            try:
+                subject.completed_units = min(int(completed_units), subject.total_units)
+                db.session.commit()
+                flash('Progress updated successfully!', 'success')
+            except ValueError:
+                flash('Invalid input. Please enter a valid number.', 'danger')
+        return redirect(url_for('progress'))
+
+    subjects = Subject.query.filter_by(user_id=current_user.id).all()
+    overall_progress = round(
+        sum(s.progress_percent for s in subjects) / len(subjects), 1
+    ) if subjects else 0
+    return render_template("progress.html", subjects=subjects, overall_progress=overall_progress)
+
+@app.route('/progress-data')
+@login_required
+def progress_data():
+    data = (
+        db.session.query(Subject.name, db.func.sum(TimetableSession.duration))
+        .join(TimetableSession, Subject.id == TimetableSession.subject_id)
+        .filter(TimetableSession.user_id == current_user.id)
+        .group_by(Subject.name)
+        .all()
+    )
+    chart_data = {
+        "labels": [row[0] for row in data],
+        "data": [row[1] for row in data]
+    }
+    return jsonify(chart_data)
 
 @app.route('/pomodoro')
 @login_required
 def pomodoro():
     return render_template('pomodoro.html')
 
+@app.route('/pomodoro/<subject_name>')
+@login_required
+def pomodoro_subject(subject_name):
+    return render_template('pomodoro.html', subject_name=subject_name)
+
+# ---------------------- Timetable ---------------------- #
 @app.route('/timetable')
 @login_required
 def timetable():
-    return render_template('timetable.html')
+    sessions = TimetableSession.query.filter_by(user_id=current_user.id).order_by(
+        TimetableSession.date, TimetableSession.start_time
+    ).all()
+    return render_template('timetable.html', timetable=sessions)
 
+@app.route('/generate_timetable')
+@login_required
+def generate_timetable():
+    subjects = Subject.query.filter_by(user_id=current_user.id).all()
+    if not subjects:
+        flash("Add subjects before generating a timetable.", "warning")
+        return redirect(url_for('subjects'))
+
+    # Clear previous sessions
+    TimetableSession.query.filter_by(user_id=current_user.id).delete()
+
+    start_date = datetime.now().date()
+    max_days_left = max(subject.days_left for subject in subjects)
+
+    for i in range(max_days_left):
+        current_date = start_date + timedelta(days=i)
+        current_time = time(9, 0)
+        total_minutes = 6 * 60  # 6 hours/day = 360 minutes available
+
+        # Generate daily schedule using knapsack
+        daily_schedule = generate_knapsack_schedule(subjects, total_minutes)
+
+        for item in daily_schedule:
+            subject = item['subject']
+            duration = item['duration']
+
+            end_time = (datetime.combine(datetime.today(), current_time) + timedelta(minutes=duration)).time()
+
+            session = TimetableSession(
+                user_id=current_user.id,
+                subject_id=subject.id,
+                date=current_date,
+                start_time=current_time,
+                end_time=end_time,
+                duration=duration
+            )
+            db.session.add(session)
+
+            # 15-minute break between sessions
+            current_time = (datetime.combine(datetime.today(), end_time) + timedelta(minutes=15)).time()
+
+    db.session.commit()
+    flash("Timetable generated successfully for all days until your exams!", "success")
+    return redirect(url_for('timetable'))
+
+# ---------------------- Run ---------------------- #
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
