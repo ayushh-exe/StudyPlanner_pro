@@ -58,7 +58,7 @@ project/
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/ayushh-exe/StudyPlanner_pro.git
-   cd your-repo-name
+   cd StudyPlanner_pro
    ```
 
 2. **Create a virtual environment (optional but recommended):**
