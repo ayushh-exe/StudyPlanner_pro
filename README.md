@@ -1,5 +1,5 @@
 
-# Learning Scheduler 🧠📚
+# StudyPlanner Pro 🧠📚
 
 A web app built with Flask to help students stay productive by managing subjects, tracking progress, following Pomodoro sessions, and organizing timetables...
 
