@@ -4,6 +4,13 @@
     <h2>My Timetable</h2>
     <a href="{{ url_for('generate_timetable') }}" class="btn btn-success mb-3">Generate New Timetable</a>
     
+    <!-- Active Session Alert -->
+    <div id="activeSessionAlert" class="alert alert-info d-none">
+        <h5>📚 Currently Studying</h5>
+        <p id="activeSessionInfo"></p>
+        <button id="completeSessionBtn" class="btn btn-success btn-sm">Complete Session</button>
+    </div>
+    
     {% for day in timetable|groupby('date') %}
     <div class="card mb-3">
         <div class="card-header">
@@ -11,15 +18,36 @@
         </div>
         <div class="card-body">
             {% for session in day.list %}
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded shadow-sm 
+                        {% if session.is_completed %}bg-success bg-opacity-10{% else %}bg-light{% endif %}" 
+                 data-session-id="{{ session.id }}">
                 <div>
-                    <h5>{{ session.subject.name }}</h5>
-                    <p class="mb-0">{{ session.start_time.strftime('%H:%M') }} - {{ session.end_time.strftime('%H:%M') }}</p>
-                    <span class="badge bg-primary">Priority: {{ session.subject.priority }}</span>
+                    <h5 class="mb-1">
+                        {{ session.subject.name }}
+                        {% if session.is_completed %}
+                            <span class="badge bg-success ms-2">✓ Completed</span>
+                        {% endif %}
+                    </h5>
+                    <p class="mb-1 text-muted">
+                        {{ session.start_time.strftime('%H:%M') }} - {{ session.end_time.strftime('%H:%M') }}
+                    </p>
+                    <span class="badge bg-primary me-1">Priority: {{ session.subject.priority }}</span>
                     <span class="badge bg-warning text-dark">Complexity: {{ session.subject.complexity }}</span>
                 </div>
-                <div class="text-end">
-                    <span class="badge bg-success">{{ session.duration }} minutes</span>
+                <div class="text-end d-flex align-items-center">
+                    <span class="badge bg-info me-2">{{ session.duration }} mins</span>
+                    
+                    {% if not session.is_completed %}
+                        <button class="btn btn-primary btn-sm me-2 start-session-btn" 
+                                data-session-id="{{ session.id }}">
+                            📚 Start Study
+                        </button>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('pomodoro_subject', subject_name=session.subject.name) }}"
+                       class="btn btn-outline-danger btn-sm">
+                        ⏱️ Pomodoro
+                    </a>
                 </div>
             </div>
             {% endfor %}
@@ -27,4 +55,173 @@
     </div>
     {% endfor %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let activeSessionId = null;
+    let activeSessionInterval = null;
+    
+    // Check for active session on page load
+    checkActiveSession();
+    
+    // Start session buttons
+    document.querySelectorAll('.start-session-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const sessionId = this.dataset.sessionId;
+            startSession(sessionId);
+        });
+    });
+    
+    // Complete session button
+    document.getElementById('completeSessionBtn').addEventListener('click', function() {
+        if (activeSessionId) {
+            completeSession(activeSessionId);
+        }
+    });
+    
+    function checkActiveSession() {
+        fetch('/get_active_session')
+            .then(response => response.json())
+            .then(data => {
+                if (data.has_active_session) {
+                    showActiveSession(data);
+                    activeSessionId = data.session_id;
+                    startActiveSessionTimer(data.elapsed_minutes, data.planned_duration);
+                } else {
+                    hideActiveSession();
+                }
+            })
+            .catch(error => console.error('Error checking active session:', error));
+    }
+    
+    function startSession(sessionId) {
+        if (activeSessionId) {
+            alert('You already have an active study session. Please complete it first.');
+            return;
+        }
+        
+        fetch(`/start_session/${sessionId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrf-token]').content
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                activeSessionId = data.session_id;
+                // Disable all start buttons
+                document.querySelectorAll('.start-session-btn').forEach(btn => {
+                    btn.disabled = true;
+                    btn.textContent = '📚 Session Active';
+                });
+                
+                // Show active session alert
+                checkActiveSession();
+                
+                // Flash success message
+                showFlashMessage('Study session started! Good luck! 🎯', 'success');
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error starting session:', error);
+            alert('Failed to start session. Please try again.');
+        });
+    }
+    
+    function completeSession(sessionId) {
+        if (!confirm('Are you sure you want to complete this study session?')) {
+            return;
+        }
+        
+        fetch(`/complete_session/${sessionId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrf-token]').content
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                activeSessionId = null;
+                hideActiveSession();
+                
+                // Re-enable start buttons
+                document.querySelectorAll('.start-session-btn').forEach(btn => {
+                    btn.disabled = false;
+                    btn.textContent = '📚 Start Study';
+                });
+                
+                // Show completion message
+                showFlashMessage(data.message + ` Progress: ${data.total_progress}%`, 'success');
+                
+                // Reload page to update UI
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error completing session:', error);
+            alert('Failed to complete session. Please try again.');
+        });
+    }
+    
+    function showActiveSession(sessionData) {
+        const alert = document.getElementById('activeSessionAlert');
+        const info = document.getElementById('activeSessionInfo');
+        
+        info.innerHTML = `
+            <strong>Subject:</strong> ${sessionData.subject_name}<br>
+            <strong>Time Elapsed:</strong> <span id="elapsedTime">${sessionData.elapsed_minutes} minutes</span><br>
+            <strong>Planned Duration:</strong> ${sessionData.planned_duration} minutes
+        `;
+        
+        alert.classList.remove('d-none');
+    }
+    
+    function hideActiveSession() {
+        document.getElementById('activeSessionAlert').classList.add('d-none');
+        if (activeSessionInterval) {
+            clearInterval(activeSessionInterval);
+            activeSessionInterval = null;
+        }
+    }
+    
+    function startActiveSessionTimer(initialMinutes, plannedDuration) {
+        let elapsedMinutes = initialMinutes;
+        const elapsedTimeSpan = document.getElementById('elapsedTime');
+        
+        activeSessionInterval = setInterval(() => {
+            elapsedMinutes++;
+            elapsedTimeSpan.textContent = `${elapsedMinutes} minutes`;
+            
+            // Change color if over planned duration
+            if (elapsedMinutes > plannedDuration) {
+                elapsedTimeSpan.classList.add('text-warning');
+            }
+        }, 60000); // Update every minute
+    }
+    
+    function showFlashMessage(message, category) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${category} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+});
+</script>
 {% endblock %}
