@@ -1,12 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container">
-    <h2>Welcome, {{ username }}!</h2>
-    <div class="row mt-4">
+<div class="container py-4">
+    <h2 class="mb-4">Welcome, {{ username }}!</h2>
+
+    <!-- Overall Progress Overview -->
+    <div class="mt-4">
+        <h5 class="mb-2">📈 Overall Study Progress</h5>
+        <div class="progress mb-4" style="height: 25px;">
+            <div class="progress-bar bg-success" role="progressbar"
+                style="width: {{ overall_progress }}%;" aria-valuenow="{{ overall_progress }}"
+                aria-valuemin="0" aria-valuemax="100">
+                {{ overall_progress }}%
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Cards -->
+    <div class="row">
         <!-- Subjects Card -->
-        <div class="col-md-4 mb-4">
+        <div class="col-md-6 col-lg-3 mb-4">
             <div class="card h-100">
-                <div class="card-body">
+                <div class="card-body text-center">
                     <h5 class="card-title">📚 My Subjects</h5>
                     <p class="card-text">Manage your subjects and syllabus</p>
                     <a href="{{ url_for('subjects') }}" class="btn btn-primary">Manage Subjects</a>
@@ -15,9 +29,9 @@
         </div>
 
         <!-- Progress Tracking Card -->
-        <div class="col-md-4 mb-4">
+        <div class="col-md-6 col-lg-3 mb-4">
             <div class="card h-100">
-                <div class="card-body">
+                <div class="card-body text-center">
                     <h5 class="card-title">📊 Progress Tracking</h5>
                     <p class="card-text">Track your learning progress</p>
                     <a href="{{ url_for('progress') }}" class="btn btn-primary">View Progress</a>
@@ -26,9 +40,9 @@
         </div>
 
         <!-- Pomodoro Timer Card -->
-        <div class="col-md-4 mb-4">
+        <div class="col-md-6 col-lg-3 mb-4">
             <div class="card h-100">
-                <div class="card-body">
+                <div class="card-body text-center">
                     <h5 class="card-title">⏱️ Pomodoro Timer</h5>
                     <p class="card-text">Focus on your studies</p>
                     <a href="{{ url_for('pomodoro') }}" class="btn btn-primary">Start Timer</a>
@@ -36,10 +50,10 @@
             </div>
         </div>
 
-        <!-- 📅 Timetable Card (NEW) -->
-        <div class="col-md-4 mb-4">
+        <!-- Timetable Card -->
+        <div class="col-md-6 col-lg-3 mb-4">
             <div class="card h-100">
-                <div class="card-body">
+                <div class="card-body text-center">
                     <h5 class="card-title">📅 Timetable</h5>
                     <p class="card-text">View and manage your study schedule</p>
                     <a href="{{ url_for('timetable') }}" class="btn btn-primary">View Timetable</a>
@@ -47,5 +61,58 @@
             </div>
         </div>
     </div>
+
+    <!-- Study Timer Clock -->
+    <div class="text-center my-5">
+        <h4>⏳ Study Timer</h4>
+        <div id="study-timer-display" class="study-timer-display mb-3">00:00:00</div>
+        <button id="start-btn" class="btn btn-success me-2">Start</button>
+        <button id="pause-btn" class="btn btn-warning me-2">Pause</button>
+        <button id="reset-btn" class="btn btn-danger">Reset</button>
+    </div>
 </div>
+
+<!-- Timer Script -->
+<script>
+    let timer;
+    let totalSeconds = 0;
+    let running = false;
+
+    function updateDisplay() {
+        const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+        const secs = String(totalSeconds % 60).padStart(2, '0');
+        document.getElementById('study-timer-display').textContent = `${hrs}:${mins}:${secs}`;
+    }
+
+    function startTimer() {
+        if (!running) {
+            running = true;
+            timer = setInterval(() => {
+                totalSeconds++;
+                updateDisplay();
+            }, 1000);
+        }
+    }
+
+    function pauseTimer() {
+        if (running) {
+            clearInterval(timer);
+            running = false;
+        }
+    }
+
+    function resetTimer() {
+        clearInterval(timer);
+        running = false;
+        totalSeconds = 0;
+        updateDisplay();
+    }
+
+    document.getElementById('start-btn').addEventListener('click', startTimer);
+    document.getElementById('pause-btn').addEventListener('click', pauseTimer);
+    document.getElementById('reset-btn').addEventListener('click', resetTimer);
+
+    updateDisplay();
+</script>
 {% endblock %}
